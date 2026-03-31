@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- Header with the extension name -->
+  <div id="header">
+    <h1>Beacon</h1>
+    <p>Scam Detection Tool</p>
+  </div>
+
+  <!-- The main button the user clicks to scan -->
+  <button id="scan-button">Check this page</button>
+
+  <!-- Results area: hidden at first -->
+  <div id="results" class="hidden">
+
+    <!-- Score circle and verdict on the same line -->
+    <div id="score-section">
+      <div id="score-circle">
+        <span id="score-number">0</span>
+        <span id="score-label">/ 10</span>
+      </div>
+      <div id="verdict-section">
+        <p id="verdict-text">Safe</p>
+        <p id="verdict-url"></p>
+      </div>
+    </div>
+
+    <!-- Plain-language explanation -->
+    <div id="explanation-section">
+      <p id="explanation-text"></p>
+    </div>
+
+    <!-- Website information -->
+    <div id="website-info">
+      <h3>Website Information</h3>
+      <div class="info-row">
+        <span class="info-label">Domain Age</span>
+        <span id="info-age" class="info-value"></span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Country</span>
+        <span id="info-country" class="info-value"></span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Registrar</span>
+        <span id="info-registrar" class="info-value"></span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Popularity</span>
+        <span id="info-popularity" class="info-value"></span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Error area: hidden at first -->
+  <div id="error" class="hidden">
+    <p id="error-message"></p>
+  </div>
+
+  <!-- Load our compiled TypeScript -->
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "beacon-extension",
+  "version": "0.1.0",
+  "description": "Privacy-first scam detection Chrome extension",
+  "scripts": {
+    "build": "tsc && cp src/popup/popup.html dist/popup/popup.html && cp src/popup/popup.css dist/popup/popup.css"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.300",
+    "typescript": "^5.0.0"
+  }
+}

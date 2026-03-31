@@ -1,0 +1,10 @@
+cat > .gitignore << 'EOF'
+#Dependencies
+node_modules/
+
+#Compiled output
+dist/
+
+#macOS system files
+.DS_Store
+EOF
