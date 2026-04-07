@@ -23,7 +23,7 @@ const SCAM_PHRASES:  readonly string[] = [
 
 ];
 
-//Helper (scan peice of text for scam phrase)
+//Helper (scan piece of text for scam phrase)
 //takes chunk of text and returns list of scam phrases found in it
 //returns empty list if no phrases found
 
