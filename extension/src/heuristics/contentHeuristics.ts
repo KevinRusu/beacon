@@ -1,4 +1,4 @@
-//Conten heuristics module
+//Content heuristics module
 
 //analyzes content of page (text, links, title, etc)
 //returns HeuristicResult showing how likely page is a scam
