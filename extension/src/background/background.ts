@@ -22,7 +22,7 @@
 // at runtime, so we redeclare the minimal shapes we need here.
 // Keep in sync with src/types/heuristics.ts.
 
-type Verdict = "safe" | "suspicious" | "scam";
+type Verdict = "Safe" | "Uncertain" | "Likely Scam";
 type HeuristicSource = "content" | "url" | "combined";
 
 interface HeuristicResult {
