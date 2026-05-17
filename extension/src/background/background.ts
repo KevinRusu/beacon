@@ -91,6 +91,6 @@ chrome.runtime.onMessage.addListener(
 // –– Tab cleanup ––
 // When a tab closes, remove its stored entry so session storage doesn't grow forever.
 
-chrome.tabs.onRemoved.addListener((tabId: number) => {
-    chrome.storage.session.remove(`tab_${tabId}`);
+chrome.tabs.onRemoved.addListener(async (tabId: number) => {
+    await chrome.storage.session.remove(`tab_${tabId}`);
 });

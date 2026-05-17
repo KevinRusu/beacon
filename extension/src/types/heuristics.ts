@@ -6,7 +6,7 @@
 
 // Verdict
 
-export type Verdict = "Safe" | "Uncertain" | "Likely Scam";
+export type Verdict = "safe" | "uncertain" | "scam";
 
 // HeuristicSource - describes which module produced the result.
 // "content"  = text/phrase/link analysis of the page body

@@ -10,7 +10,27 @@
 //   3. Display the result (score, verdict, explanation, findings list)
 //   4. Enable the "Check this page" button only if score >= 4
 
-import type { HeuristicResult, ExtractedPageData, Verdict } from "../types/heuristics";
+import type { HeuristicResult, ExtractedPageData } from "../types/heuristics";
+
+// Protocols Chrome does not inject content scripts into. The popup must show a
+// distinct message on these pages because the content script will never have
+// run, so no result is ever stored for the tab.
+const RESTRICTED_PROTOCOLS = new Set([
+    "chrome:",
+    "chrome-extension:",
+    "edge:",
+    "about:",
+    "view-source:",
+    "file:",
+]);
+
+function isRestrictedUrl(url: string): boolean {
+    try {
+        return RESTRICTED_PROTOCOLS.has(new URL(url).protocol);
+    } catch {
+        return false;
+    }
+}
 
 // –– Element references ––
 // document.getElementById returns HTMLElement | null.
@@ -28,17 +48,6 @@ const findingsSection = document.getElementById("findings-section") as HTMLDivEl
 const findingsList    = document.getElementById("findings-list")    as HTMLUListElement;
 const errorDiv        = document.getElementById("error")            as HTMLDivElement;
 const errorMessage    = document.getElementById("error-message")    as HTMLParagraphElement;
-
-// –– Helper: verdict → CSS class suffix ––
-// Maps the shared Verdict type to the CSS class suffix used for colour coding.
-// Deriving this from the verdict (not re-computing from score) keeps the two
-// in sync automatically — one source of truth in contentHeuristics.ts:toVerdict.
-
-function getVerdictLevel(verdict: Verdict): string {
-    if (verdict === "Safe") return "safe";
-    if (verdict === "Uncertain") return "suspicious";
-    return "scam"; // "Likely Scam"
-}
 
 // –– Helper: extract readable domain from a full URL ––
 
@@ -66,16 +75,17 @@ function showHeuristicResult(result: HeuristicResult, url: string): void {
     errorDiv.classList.add("hidden");
     resultsDiv.classList.remove("hidden");
 
-    // Score circle: update number and background colour.
+    // Score circle: update number and background colour. The verdict value
+    // doubles as the CSS class suffix (safe / uncertain / scam).
     scoreNumber.textContent = result.score.toString();
-    const level = getVerdictLevel(result.verdict);
-    scoreCircle.classList.remove("score-safe", "score-suspicious", "score-scam");
-    scoreCircle.classList.add("score-" + level);
+    scoreCircle.classList.remove("score-safe", "score-uncertain", "score-scam");
+    scoreCircle.classList.add("score-" + result.verdict);
 
-    // Verdict text: already title-cased from the shared Verdict type.
+    // Verdict text is lowercase in the model; CSS text-transform: capitalize
+    // renders it as "Safe" / "Uncertain" / "Scam" in the popup.
     verdictText.textContent = result.verdict;
-    verdictText.classList.remove("verdict-safe", "verdict-suspicious", "verdict-scam");
-    verdictText.classList.add("verdict-" + level);
+    verdictText.classList.remove("verdict-safe", "verdict-uncertain", "verdict-scam");
+    verdictText.classList.add("verdict-" + result.verdict);
 
     // Show the domain of the page at the time of analysis.
     verdictUrl.textContent = getDomain(url);
@@ -111,6 +121,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (!tab?.id) {
             showError("Could not identify the current tab.");
+            return;
+        }
+
+        // Chrome does not inject content scripts on chrome:// / file:// / etc.
+        // Show a clearer message instead of the generic "not analysed" error.
+        if (isRestrictedUrl(tab.url ?? "")) {
+            showError("Beacon cannot analyse this page type.");
             return;
         }
 

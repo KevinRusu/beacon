@@ -1,4 +1,4 @@
-import { HeuristicResult, Link } from "../types/heuristics";
+import type { HeuristicResult, Link, Verdict } from "../types/heuristics";
 
 /**
  * URL-based scam detection heuristics
@@ -355,16 +355,16 @@ export function analyzeLink(link: Link): HeuristicResult {
   const score = suspicionScore / maxScore;
 
   // Determine verdict based on findings
-  let verdict: "Safe" | "Uncertain" | "Suspicious" | "Likely Scam";
+  let verdict: Verdict;
 
   if (findings.length === 0) {
-    verdict = "Safe";
+    verdict = "safe";
   } else if (findings.length <= 2) {
-    verdict = "Uncertain";
+    verdict = "uncertain";
   } else if (findings.length <= 4) {
-    verdict = "Suspicious";
+    verdict = "uncertain";
   } else {
-    verdict = "Likely Scam";
+    verdict = "scam";
   }
 
   return {
@@ -383,7 +383,7 @@ export function analyzeLinks(links: Link[]): HeuristicResult {
   if (links.length === 0) {
     return {
       score: 0,
-      verdict: "Safe",
+      verdict: "safe",
       explanation: "No links found on page",
       findings: [],
       source: "url",
@@ -392,17 +392,17 @@ export function analyzeLinks(links: Link[]): HeuristicResult {
 
   const results = links.map(analyzeLink);
   const averageScore = results.reduce((sum, r) => sum + r.score, 0) / results.length;
-  const suspiciousCount = results.filter((r) => r.verdict !== "Safe").length;
+  const suspiciousCount = results.filter((r) => r.verdict !== "safe").length;
 
-  let verdict: "Safe" | "Uncertain" | "Suspicious" | "Likely Scam";
+  let verdict: Verdict;
   if (suspiciousCount === 0) {
-    verdict = "Safe";
+    verdict = "safe";
   } else if (suspiciousCount <= links.length * 0.25) {
-    verdict = "Uncertain";
+    verdict = "uncertain";
   } else if (suspiciousCount <= links.length * 0.5) {
-    verdict = "Suspicious";
+    verdict = "uncertain";
   } else {
-    verdict = "Likely Scam";
+    verdict = "scam";
   }
 
   const findings = results

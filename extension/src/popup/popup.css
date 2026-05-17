@@ -168,6 +168,7 @@ body {
   font-size: 20px;
   font-weight: bold;
   margin: 0 0 4px 0;
+  text-transform: capitalize;
 }
 
 #verdict-url {
@@ -238,7 +239,7 @@ body {
   color: #1b7a3d;
 }
 
-.verdict-suspicious {
+.verdict-uncertain {
   color: #b8860b;
 }
 
@@ -250,7 +251,7 @@ body {
   background-color: #1b7a3d;
 }
 
-.score-suspicious {
+.score-uncertain {
   background-color: #b8860b;
 }
 

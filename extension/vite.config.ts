@@ -36,10 +36,12 @@ export default defineConfig({
         // "background" → dist/background/background.js (manifest points here)
         // "popup"      → dist/popup/popup.js         (popup.html loads this)
         entryFileNames: "[name]/[name].js",
-        // Chrome loads content scripts and background workers as classic (non-module)
-        // scripts. IIFE format ensures each entry is a self-contained file with no
-        // ESM import/export statements or code-split chunks that would fail at runtime.
-        format: "iife",
+        // Use ES module format: Rollup's IIFE format does not support multiple
+        // inputs. Since Vite resolves all imports at build time and our entry
+        // points have no top-level exports, the bundled output contains no
+        // import/export statements and runs correctly as a classic script in
+        // Chrome's content-script, service-worker, and popup contexts.
+        format: "es",
       },
     },
   },

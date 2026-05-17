@@ -304,20 +304,20 @@ export function toVerdict(score: number): {
 } {
     if (score >= 7) {
         return {
-            verdict: "Likely Scam",
+            verdict: "scam",
             explanation:
                 "Strong phishing indicators detected. Avoid entering credentials or interacting with this page.",
         };
     }
     if (score >= 4) {
         return {
-            verdict: "Uncertain",
+            verdict: "uncertain",
             explanation:
                 "Multiple signals detected. Exercise caution and verify the site independently.",
         };
     }
     return {
-        verdict: "Safe",
+        verdict: "safe",
         explanation: "No significant phishing indicators detected.",
     };
 }

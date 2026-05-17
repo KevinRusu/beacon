@@ -32,7 +32,7 @@ function runTest(name: string, pageData: ExtractedPageData): void {
 // ─── Baseline ────────────────────────────────────────────────────────────────
 
 // Safe, content-rich legitimate page.
-// No rules should fire. Expected: score 0, "Safe".
+// No rules should fire. Expected: score 0, "safe".
 runTest("Safe page — Wikipedia article", {
     url: "https://en.wikipedia.org/wiki/Moon",
     title: "Moon - Wikipedia",
@@ -46,7 +46,7 @@ runTest("Safe page — Wikipedia article", {
 // ─── Tier 1: isdomainip ───────────────────────────────────────────────────────
 
 // URL uses a raw IP address instead of a domain name.
-// EDA: 100% phishing rate. Expected: score 10, "Likely Scam".
+// EDA: 100% phishing rate. Expected: score 10, "scam".
 runTest("Tier 1 — IP address URL", {
     url: "http://192.168.1.105/login",
     title: "Login",
@@ -59,7 +59,7 @@ runTest("Tier 1 — IP address URL", {
 
 // Credential-injection pattern: http://paypal.com@evil-phishing.xyz/login
 // Browser resolves evil-phishing.xyz; text looks like paypal.com.
-// EDA: 100% phishing rate. Expected: score 8, "Likely Scam".
+// EDA: 100% phishing rate. Expected: score 8, "scam".
 runTest("Tier 1 — @ credential injection in URL", {
     url: "http://paypal.com@evil-phishing.xyz/login",
     title: "PayPal — Login",
@@ -72,7 +72,7 @@ runTest("Tier 1 — @ credential injection in URL", {
 
 // URL exceeds 144 chars (99th percentile of phishing distribution).
 // EDA Finding 3.9: 100% phishing above this threshold.
-// Expected: score 7, "Likely Scam".
+// Expected: score 7, "scam".
 runTest("Tier 1 — URL exceeds 144-char hard threshold", {
     url: "https://secure-login.paypal-accounts-verify.com/confirm/identity/step2?token=aB3xK9mNqR7vL2pW5yZ1cF4hJ8dU6tE0sG&session=mNqR7vL2pWxK9mN",
     title: "Verify Your Account",
@@ -85,7 +85,7 @@ runTest("Tier 1 — URL exceeds 144-char hard threshold", {
 
 // URL over 75 chars with 3+ hyphens in hostname (subdomain stacking).
 // Neither signal alone is reliable; together they indicate an attack URL.
-// Expected: score 4, "Uncertain".
+// Expected: score 4, "uncertain".
 runTest("Tier 2 — Long URL with hyphen-stacked hostname", {
     url: "https://secure-paypal-login-verify.attacker-phishing.com/account/verify?session=abc123",
     title: "Account Verification",
@@ -100,7 +100,7 @@ runTest("Tier 2 — Long URL with hyphen-stacked hostname", {
 // URL over 75 chars with percent-encoded sequences in the PATH (≥3 %XX patterns).
 // Encoding scoped to path/hostname — query string encoding is excluded to avoid
 // false positives on legitimate search or redirect URLs.
-// Expected: score 4, "Uncertain".
+// Expected: score 4, "uncertain".
 runTest("Tier 2 — Long URL with percent-encoded path obfuscation", {
     url: "https://example.com/%72%65%64%69%72%65%63%74/%74%6f/evil-destination/landing-page-login",
     title: "Redirecting...",
@@ -113,7 +113,7 @@ runTest("Tier 2 — Long URL with percent-encoded path obfuscation", {
 
 // Very little body text AND no meta description.
 // Proxy for low largestlinelength + lineofcode (dominant EDA features).
-// Expected: score 3, "Safe" (single Tier 2 rule — needs another signal to reach Uncertain).
+// Expected: score 3, "safe" (single Tier 2 rule — needs another signal to reach Uncertain).
 runTest("Tier 2 — Sparse page with no meta description", {
     url: "https://suspicious-login-page.com/",
     title: "Login",
@@ -123,7 +123,7 @@ runTest("Tier 2 — Sparse page with no meta description", {
 });
 
 // Sparse + no meta + one scam phrase — compound signals stack to Uncertain.
-// Expected: score 5+, "Uncertain".
+// Expected: score 5+, "uncertain".
 runTest("Tier 2 — Sparse page + scam phrase in title", {
     url: "https://totally-not-a-scam.com/",
     title: "Urgent action required",
@@ -135,7 +135,7 @@ runTest("Tier 2 — Sparse page + scam phrase in title", {
 // ─── Supplementary: scam phrase detection ────────────────────────────────────
 
 // Multiple scam phrases across title, meta, and body.
-// Expected: high score, "Likely Scam".
+// Expected: high score, "scam".
 runTest("Supplementary — Multiple scam phrases across fields", {
     url: "http://free-prize-winner.xyz/claim",
     title: "Congratulations you are our winner!",
@@ -147,7 +147,7 @@ runTest("Supplementary — Multiple scam phrases across fields", {
 });
 
 // One phrase in the title — tests the 3-point title weighting.
-// Expected: score 3, "Safe" (just below Uncertain threshold).
+// Expected: score 3, "safe" (just below Uncertain threshold).
 runTest("Supplementary — Single scam phrase in title only", {
     url: "https://example.com",
     title: "You have won a prize",
@@ -159,7 +159,7 @@ runTest("Supplementary — Single scam phrase in title only", {
 // ─── Supplementary: mismatched link detection ─────────────────────────────────
 
 // Link text claims apple.com but href goes to a phishing domain.
-// Expected: score 4, "Uncertain".
+// Expected: score 4, "uncertain".
 runTest("Supplementary — Mismatched link claiming apple.com", {
     url: "https://newsletter.example.com",
     title: "Newsletter",
@@ -171,7 +171,7 @@ runTest("Supplementary — Mismatched link claiming apple.com", {
 });
 
 // Same-site link — should NOT be flagged as a mismatch.
-// Expected: score 0, "Safe".
+// Expected: score 0, "safe".
 runTest("Supplementary — Same-site subdomain link (no flag)", {
     url: "https://blog.example.com/posts/1",
     title: "My Blog Post",
@@ -183,7 +183,7 @@ runTest("Supplementary — Same-site subdomain link (no flag)", {
 });
 
 // Generic link text with no domain claim — should NOT trigger mismatch check.
-// Expected: score 0, "Safe".
+// Expected: score 0, "safe".
 runTest("Supplementary — Generic link text (no domain claim, no flag)", {
     url: "https://news.example.com/article",
     title: "Breaking News",
@@ -198,7 +198,7 @@ runTest("Supplementary — Generic link text (no domain claim, no flag)", {
 // ─── Edge cases ───────────────────────────────────────────────────────────────
 
 // All fields empty — function should not throw.
-// Expected: score 0, "Safe".
+// Expected: score 0, "safe".
 runTest("Edge case — Completely empty page", {
     url: "",
     title: "",
@@ -208,7 +208,7 @@ runTest("Edge case — Completely empty page", {
 });
 
 // Combination: IP URL + scam phrase — score should cap at 10.
-// Expected: score 10, "Likely Scam".
+// Expected: score 10, "scam".
 runTest("Edge case — IP URL combined with scam phrases (score cap)", {
     url: "http://192.0.2.1/win",
     title: "You have won",
