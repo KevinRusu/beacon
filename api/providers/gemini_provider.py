@@ -2,6 +2,9 @@ import os
 from google import genai
 from google.genai import types
 from schemas import AnalyzeRequest, AnalyzeResponse
+from exceptions import ProviderConfigError
+
+MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
 
 SYSTEM_INSTRUCTION = """You are a phishing and scam detection classifier for a browser security extension.
 Analyze the provided web page data and classify it.
@@ -41,14 +44,14 @@ class GeminiProvider:
     def __init__(self):
         api_key = os.getenv("GEMINI_API_KEY", "")
         if not api_key:
-            raise RuntimeError(
-                "GEMINI_API_KEY is not set. Add it to api/.env and restart the server."
+            raise ProviderConfigError(
+                "GEMINI_API_KEY is not set. Set it in api/.env or the environment, or set USE_MOCK=true."
             )
         self.client = genai.Client(api_key=api_key)
 
     async def analyze(self, request: AnalyzeRequest) -> AnalyzeResponse:
         response = await self.client.aio.models.generate_content(
-            model="gemini-2.5-flash-lite",
+            model=MODEL,
             contents=build_prompt(request),
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_INSTRUCTION,
@@ -57,9 +60,7 @@ class GeminiProvider:
                 max_output_tokens=256,
             ),
         )
-        # response.parsed is the Pydantic model when response_schema is a Pydantic class
         parsed = response.parsed
         if isinstance(parsed, AnalyzeResponse):
             return parsed
-        # fallback for older SDK versions that don't auto-parse
         return AnalyzeResponse.model_validate_json(response.text)
