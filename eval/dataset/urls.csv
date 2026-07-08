@@ -1,0 +1,66 @@
+url,label,category,expected_verdict,expected_rules,source,notes
+https://en.wikipedia.org/wiki/Phishing,legitimate,education,safe,,manual,Reference article on phishing — content-rich and clearly legitimate
+https://www.google.com,legitimate,search,safe,,manual,Most visited site globally; clean short URL
+https://github.com,legitimate,developer,safe,,manual,Developer platform; clean HTTPS domain
+https://www.apple.com,legitimate,tech,safe,,manual,Major brand; short URL no suspicious signals
+https://www.microsoft.com,legitimate,tech,safe,,manual,Major brand; short clean URL
+https://www.amazon.com,legitimate,ecommerce,safe,,manual,Major ecommerce; clean domain
+https://www.paypal.com,legitimate,finance,safe,,manual,Legitimate PayPal domain — baseline for brand-impersonation phishing tests
+https://www.chase.com,legitimate,banking,safe,,manual,Major US bank; clean domain
+https://www.bankofamerica.com,legitimate,banking,safe,,manual,Major US bank; clean domain
+https://www.irs.gov,legitimate,government,safe,,manual,US tax authority; .gov TLD is controlled and trustworthy
+https://www.canada.ca,legitimate,government,safe,,manual,Official Canadian government site
+https://www.bbc.com,legitimate,news,safe,,manual,UK public broadcaster; clean domain
+https://www.nytimes.com,legitimate,news,safe,,manual,Major US newspaper
+https://www.reddit.com,legitimate,social,safe,,manual,Major social platform; clean domain
+https://stackoverflow.com,legitimate,developer,safe,,manual,Developer Q&A; no suspicious signals
+https://www.linkedin.com,legitimate,professional,safe,,manual,Professional network; clean domain
+https://www.youtube.com,legitimate,video,safe,,manual,Google-owned video platform
+https://www.netflix.com,legitimate,streaming,safe,,manual,Major streaming service; clean domain
+https://www.harvard.edu,legitimate,education,safe,,manual,.edu TLD controlled by US EDUCAUSE; clearly legitimate
+https://www.mit.edu,legitimate,education,safe,,manual,MIT official site; clean .edu domain
+https://zoom.us,legitimate,productivity,safe,,manual,Video conferencing; short domain
+https://www.dropbox.com,legitimate,productivity,safe,,manual,Cloud storage; clean HTTPS domain
+https://www.mozilla.org,legitimate,tech,safe,,manual,Firefox maker; open source nonprofit
+https://www.usps.com,legitimate,government,safe,,manual,US Postal Service official site
+https://twitter.com,legitimate,social,safe,,manual,Major social platform
+https://www.amazon.com/Amazon-Basics-Screen-Cleaning-Microfiber/dp/B01MR3TKAG/ref=sr_1_3?crid=2XFXPWMHIQY2X&keywords=screen+cleaner&qid=1234567890&sprefix=screen+clean%2Caps%2C200&sr=8-3,legitimate,ecommerce,uncertain,urlLengthWithComplexity,manual,Long Amazon product URL with encoded query params — tests false positive risk for urlLengthWithComplexity (query string encoding is excluded by design)
+https://accounts.google.com/signin/v2/identifier?flowName=GlifWebSignIn&flowEntry=ServiceLogin,legitimate,auth,safe,,manual,Google sign-in page — legitimate long URL; should not trigger rules
+https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array,legitimate,developer,safe,,manual,MDN docs — long path but clean domain; tests false positive on long paths
+https://www.wellsfargo.com/mortgage/rates/,legitimate,banking,safe,,manual,Wells Fargo with path — legitimate banking URL
+https://mail.google.com,legitimate,productivity,safe,,manual,Gmail; tests subdomain of legitimate domain
+http://192.0.2.1/paypal/login,phishing,ip-based,scam,isdomainip,manual,"IP address instead of domain (RFC 5737 documentation range). EDA: isdomainip = 100% phishing rate"
+http://203.0.113.45/banking/secure/verify,phishing,ip-based,scam,isdomainip,manual,IP-based phishing targeting banking users; no domain registration trail
+http://198.51.100.23/microsoft/account/login,phishing,ip-based,scam,isdomainip,manual,IP-based Microsoft account phish; uses documentation IP range for test safety
+http://paypal.com@192.0.2.1/login,phishing,credential-injection,scam,hasobfuscation,manual,"@ injection: browser resolves 192.0.2.1 but URL looks like paypal.com to a casual reader"
+http://apple.com@203.0.113.10/icloud/verify,phishing,credential-injection,scam,hasobfuscation,manual,iCloud phishing via @ injection; disguises destination behind trusted brand
+http://secure.microsoft.com@198.51.100.5/account,phishing,credential-injection,scam,hasobfuscation,manual,Microsoft account phish via @ injection with subdomain spoofing
+https://secure-paypal-accounts-login-verify-identity.suspicious-domain.xyz/confirm/update?token=aB3xK9mNqR7vL2pW5yZ1cF4hJ8dU6tE0sGmNpQ&sessionId=xK9mNqR7vL2pW5yZ,phishing,long-url,scam,urlLengthHard,manual,URL exceeds 144 chars; token-padded path typical of phishing landing pages
+https://secure-login-verify.paypal-account-update-required.com/confirm/identity?token=aB3xK9mNqR7vL2pW5yZ1cF4hJ8dU6tE0&redirect=dashboard,phishing,long-url,scam,urlLengthHard,manual,Exceeds 144 chars; fake paypal domain; heavy token padding to obscure destination
+https://www.amazon-customer-account-verify-login-secure.update-portal.com/users/signin,phishing,hyphen-stacking,scam,urlLengthWithComplexity,manual,Long URL + 5 hyphens in hostname = urlLengthWithComplexity; impersonates Amazon
+https://secure-paypal-login-verify.account-update.malicious.xyz/portal,phishing,hyphen-stacking,uncertain,urlLengthWithComplexity,manual,Hyphen-stacked subdomain + length triggers Tier 2 compound rule
+https://microsoft-account-security-verify.login-portal.com/users/authenticate,phishing,hyphen-stacking,uncertain,urlLengthWithComplexity,manual,Classic subdomain stacking attack impersonating Microsoft account login
+https://apple-id-support-account-verify.secure-login.com/icloud/restore,phishing,hyphen-stacking,uncertain,urlLengthWithComplexity,manual,Apple ID phish via subdomain stacking; long hostname with 5 hyphens
+https://example.com/%70%61%79%70%61%6c/%6c%6f%67%69%6e/verify/account/update,phishing,encoded-path,uncertain,urlLengthWithComplexity,manual,"Percent-encoded path (decodes to /paypal/login/...) — 6 encoded sequences in path triggers compound rule"
+https://redirect.example.com/%73%65%63%75%72%65/%6c%6f%67%69%6e/%76%65%72%69%66%79/page,phishing,encoded-path,uncertain,urlLengthWithComplexity,manual,Encoded path with 9 %XX sequences; obscures destination via encoding
+https://paypal-account-verify.tk/login/secure,phishing,suspicious-tld,uncertain,,manual,Rare TLD .tk (Tokelau) historically free and heavily abused for phishing
+https://amazon-security-alert.ml/verify/account,phishing,suspicious-tld,uncertain,,manual,Rare TLD .ml (Mali) free domain commonly used in phishing campaigns
+https://microsoft-support-update.cf/windows/account/verify,phishing,suspicious-tld,uncertain,,manual,Rare TLD .cf (Central African Republic) free domain abused by phishers
+http://paypa1.com/wallet/login,phishing,typosquatting,uncertain,,manual,"Homoglyph: '1' substituted for 'l' in paypal. Human eye misses it at a glance"
+http://micros0ft.com/account/security/verify,phishing,typosquatting,uncertain,,manual,"Homoglyph: '0' substituted for 'o' in microsoft. Classic lookalike domain"
+http://g00gle.com/accounts/recover,phishing,typosquatting,uncertain,,manual,"Homoglyph: '00' substituted for 'oo' in google. Double-zero substitution"
+http://faceb00k.com/login/checkpoint,phishing,typosquatting,uncertain,,manual,"Homoglyph: '00' for 'oo' in facebook. Same pattern as g00gle"
+http://free-iphone-winner-2024.xyz/claim/prize?user=lucky&ref=email,phishing,social-engineering,uncertain,,manual,Classic prize-claim scam URL; suspicious TLD and scam-pattern domain name
+http://update-your-account-now-required.com/verify/identity,phishing,social-engineering,uncertain,,manual,Urgency-based social engineering domain; scam phrase implied in domain name
+http://secure-banking-verification-required.cf/account/confirm,phishing,suspicious-tld,uncertain,,manual,Banking phish with rare TLD; combines urgency language with free abused domain
+https://login-paypal-secure-verify-account.com/confirm?session=abc123def456ghi789jkl012,phishing,compound,scam,urlLengthWithComplexity,manual,Long URL (>75 chars) + 4 hyphens in hostname; multiple weak signals compound
+http://192.168.1.100/admin/login.php,phishing,ip-based,scam,isdomainip,manual,Private IP address (RFC 1918); no legitimate public site uses a private IP as its URL
+http://10.0.0.1/bank/secure/transfer,phishing,ip-based,scam,isdomainip,manual,Private IP (10.x.x.x range); unambiguous phishing or internal credential harvester
+https://www.amazon.com/s?k=laptop&i=electronics&bbn=172282&rh=n%3A172282%2Cn%3A13896617011&dc&ds=v1%3Axyz&qid=1234567890&sprefix=laptop%2Caps%2C200&sr=8-3,legitimate,ecommerce,safe,,manual,"Long Amazon search URL with multiple encoded params — query string encoding is intentionally excluded from urlLengthWithComplexity, so this should NOT trigger"
+https://www.google.com/search?q=phishing+detection&source=hp&ei=abc123&iflsig=xyz&oq=phishing+detection&gs_lcp=abc&sclient=gws-wiz,legitimate,search,safe,,manual,Long Google search URL — encoded spaces in query string should not trigger compound rule
+https://v0-greendotfinance.vercel.app/,phishing,free-hosting-financial,uncertain,freeHostingFinancialSubdomain,manual,Financial keyword (greendot) in Vercel subdomain — mimics GreenDot prepaid card site; freeHostingFinancialSubdomain fires (wt 5)
+https://mygslobotsb-online.icu/,phishing,suspicious-tld,uncertain,suspiciousTld,manual,High-risk .icu TLD; consonant-heavy domain but has vowels so gibberishDomainLabel does not fire; suspiciousTld fires (wt 5)
+https://nvkcy.icu/,phishing,suspicious-tld,scam,"suspiciousTld,gibberishDomainLabel",manual,"High-risk .icu TLD (wt 5) + all-consonant label ""nvkcy"" (wt 3) — combined threat 8 → score 2 → scam"
+https://pwc.wd3.myworkdayjobs.com/en-US/US_Experienced_Careers/job/NY-New-York/AI-Engineer---Data-Scientist--AI-Senior-Associate_723603WD-2/apply/applyManually,legitimate,ats-platform,safe,,manual,Long ATS/job-board URL (path 165 chars) on clean .com domain — urlLengthHard must NOT fire because domain carries no suspicion alongside path length
+https://paypal.verify-accounts.malicious.xyz/login,phishing,brand-spoofing,uncertain,brandSubdomainSpoofing,manual,paypal as subdomain on non-PayPal domain — classic brand impersonation; brandSubdomainSpoofing fires (wt 5)
+https://secure-paypal-login.attacker.com/account/verify,phishing,brand-spoofing,uncertain,brandSubdomainSpoofing,manual,paypal embedded as hyphen segment in non-PayPal hostname — brandSubdomainSpoofing fires (wt 5)

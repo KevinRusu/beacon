@@ -33,6 +33,14 @@ export interface Link {
     href: string;
 }
 
+// FormInfo - a <form> element found on the page
+// Used to detect cross-domain credential submission (textbook phishing).
+
+export interface FormInfo {
+    action: string;           // absolute URL the form posts to
+    hasPasswordField: boolean;
+}
+
 // ExtractedData - the shape of input that heuristic function receives
 
 export interface ExtractedPageData {
@@ -41,4 +49,8 @@ export interface ExtractedPageData {
     metaDescription: string;
     textContent: string;
     links: Link[];
+    forms: FormInfo[];         // all <form> elements with absolute action URLs
+    buttonText: string;        // concatenated text from buttons/CTAs (pipe-separated)
+    badgeAltTexts: string[];   // img alt texts that match known security-badge brands
+    overlayText: string;       // innerText of any immediately visible modal/dialog
 }

@@ -133,7 +133,8 @@ export default function App() {
     }
   };
 
-  const score = llmResult?.risk_score ?? result?.score ?? 0;
+  // LLM returns a risk score (0=safe, 10=dangerous); invert to match heuristic safety scale (10=safe, 0=dangerous).
+  const score = llmResult ? 10 - llmResult.risk_score : (result?.score ?? 0);
   const activeVerdict = llmResult?.label ?? result?.verdict;
   const isSafe = !result || activeVerdict === "safe";
   const isWarning = activeVerdict === "uncertain";
