@@ -6,9 +6,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    // No API key here on purpose: anything defined in this block is compiled
+    // into the shipped bundle, and the extension is public — see api/auth.py
+    // for how the server controls abuse without a client secret.
     define: {
       __API_BASE_URL__: JSON.stringify(env.API_BASE_URL || "http://localhost:3000"),
-      __BEACON_API_KEY__: JSON.stringify(env.BEACON_API_KEY || ""),
     },
     build: {
       outDir: "dist",

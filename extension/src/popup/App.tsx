@@ -42,6 +42,7 @@ function getDomain(url: string): string {
 export default function App() {
   const [result, setResult] = useState<HeuristicResult | null>(null);
   const [pageData, setPageData] = useState<ExtractedPageData | null>(null);
+  const [tabId, setTabId] = useState<number | null>(null);
   const [pageUrl, setPageUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -74,15 +75,24 @@ export default function App() {
           setIsLoading(false);
           return;
         }
+        setTabId(tab.id);
         chrome.runtime.sendMessage(
           { action: "getResult", tabId: tab.id },
-          (response: { result?: HeuristicResult; pageData?: ExtractedPageData; error?: string }) => {
+          (response: {
+            result?: HeuristicResult;
+            pageData?: ExtractedPageData;
+            aiResult?: AnalyzeResponse;
+            error?: string;
+          }) => {
             if (chrome.runtime.lastError || response?.error || !response?.result) {
               setError("Page not yet analysed. Refresh the page and try again.");
             } else {
               setResult(response.result);
               setPageData(response.pageData ?? null);
               setPageUrl(response.pageData?.url ?? tab.url ?? "");
+              // A Tier 2 check completed earlier for this tab survives
+              // popup close/reopen — the background worker cached it.
+              if (response.aiResult) setLlmResult(response.aiResult);
             }
             setIsLoading(false);
           }
@@ -101,40 +111,28 @@ export default function App() {
     chrome.storage.local.set({ aiEnabled: enabled });
   };
 
-  const handleCheckPage = async () => {
-    if (!result || !pageData) return;
+  // The network call lives in the background service worker (the only place
+  // that fetches) — it builds the payload, calls the API, and caches the
+  // response so it survives popup close/reopen.
+  const handleCheckPage = () => {
+    if (!result || tabId === null) return;
     setIsAnalyzing(true);
     setLlmError(null);
-    try {
-      const resp = await fetch(`${__API_BASE_URL__}/v1/analyze`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Beacon-Key": __BEACON_API_KEY__,
-        },
-        body: JSON.stringify({
-          url: pageData.url,
-          text: pageData.textContent.slice(0, 1500),
-          heuristic_score: result.score,
-          context: "page_body",
-          title: pageData.title,
-          meta_description: pageData.metaDescription,
-          heuristic_verdict: result.verdict,
-          heuristic_findings: result.findings,
-        }),
-      });
-      if (!resp.ok) throw new Error(`${resp.status}`);
-      const data: AnalyzeResponse = await resp.json();
-      setLlmResult(data);
-    } catch {
-      setLlmError("AI check unavailable");
-    } finally {
-      setIsAnalyzing(false);
-    }
+    chrome.runtime.sendMessage(
+      { action: "checkWithAI", tabId },
+      (response: { aiResult?: AnalyzeResponse; error?: string }) => {
+        if (chrome.runtime.lastError || response?.error || !response?.aiResult) {
+          setLlmError("AI check unavailable");
+        } else {
+          setLlmResult(response.aiResult);
+        }
+        setIsAnalyzing(false);
+      }
+    );
   };
 
-  // LLM returns a risk score (0=safe, 10=dangerous); invert to match heuristic safety scale (10=safe, 0=dangerous).
-  const score = llmResult ? 10 - llmResult.risk_score : (result?.score ?? 0);
+  // Both tiers use the same SAFETY scale (10 = safe, 0 = scam) — no inversion.
+  const score = llmResult ? llmResult.safety_score : (result?.score ?? 0);
   const activeVerdict = llmResult?.label ?? result?.verdict;
   const isSafe = !result || activeVerdict === "safe";
   const isWarning = activeVerdict === "uncertain";
