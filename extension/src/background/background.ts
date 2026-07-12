@@ -5,9 +5,9 @@
 //   popup (runs when the user opens the extension)
 //   background service worker (this file — runs behind the scenes)
 //
-// The background worker acts as a shared storage hub between the other two.
-// It receives analysis results from the content script and holds them so the
-// popup can retrieve them later, even if the popup opens after the page loaded.
+// The background worker acts as a shared storage hub between the other two,
+// and is the ONLY place that talks to the Beacon API over the network —
+// the popup and content script never fetch.
 //
 // Message flow:
 //
@@ -15,18 +15,24 @@
 //                       (sent once automatically on every page load)
 //
 //   popup.ts    ->  { action: "getResult", tabId }               →  background.ts
-//   background.ts  ->  { result, pageData }  OR  { error: "not found" }  →  popup.ts
+//   background.ts  ->  { result, pageData, aiResult? }  OR  { error: "not found" }  →  popup.ts
+//
+//   popup.ts    ->  { action: "checkWithAI", tabId }             →  background.ts
+//   background.ts  ->  { aiResult }  OR  { error }               →  popup.ts
+//                       (result is also cached, so it survives popup close/reopen)
 //
 //   popup.ts    ->  { action: "setEnabled", enabled: boolean }   →  background.ts
 //   popup.ts    ->  { action: "getEnabled" }                     →  background.ts
 //   background.ts  ->  { enabled: boolean }                      →  popup.ts
 
 import type { HeuristicResult, ExtractedPageData } from "../types/heuristics";
+import type { AnalyzeResponse } from "../types/api";
 
 // StoredEntry is the only shape not exported from the shared types file.
 interface StoredEntry {
     result: HeuristicResult;
     pageData: ExtractedPageData;
+    aiResult?: AnalyzeResponse;
 }
 
 // –– Storage ––
@@ -36,6 +42,35 @@ interface StoredEntry {
 //
 // chrome.storage.local persists across browser restarts and is used for
 // user preferences like the "Enable Beacon" toggle.
+
+// –– Tier 2 API call ––
+// Builds the wire payload in exactly one place. Score convention: everything
+// is a SAFETY score (10 = safe, 0 = scam) — the extension's internal score,
+// the heuristic_score request field, and the safety_score response field all
+// use the same scale. Nothing is inverted anywhere.
+// Field truncations mirror the server-side caps in api/schemas.py.
+// No auth header: the API has no client secret (see api/auth.py); the server
+// checks the request Origin and rate-limits instead.
+
+async function checkWithAI(stored: StoredEntry): Promise<AnalyzeResponse> {
+    const { result, pageData } = stored;
+    const resp = await fetch(`${__API_BASE_URL__}/v1/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            url: pageData.url.slice(0, 2048),
+            text: pageData.textContent.slice(0, 1500),
+            heuristic_score: result.score,
+            context: "page_body",
+            title: pageData.title.slice(0, 300),
+            meta_description: pageData.metaDescription.slice(0, 500),
+            heuristic_verdict: result.verdict,
+            heuristic_findings: result.findings.slice(0, 20).map((f) => f.slice(0, 300)),
+        }),
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return (await resp.json()) as AnalyzeResponse;
+}
 
 // –– Message listener ––
 // chrome.runtime.onMessage fires whenever content.ts or popup.ts calls
@@ -87,7 +122,7 @@ chrome.runtime.onMessage.addListener(
                     const data = await chrome.storage.session.get(key);
                     const stored = data[key] as StoredEntry | undefined;
                     if (stored) {
-                        sendResponse(stored); // { result, pageData }
+                        sendResponse(stored); // { result, pageData, aiResult? }
                     } else {
                         sendResponse({ error: "not found" });
                     }
@@ -95,6 +130,34 @@ chrome.runtime.onMessage.addListener(
             } else {
                 sendResponse({ error: "not found" });
             }
+            return true;
+        }
+
+        if (message.action === "checkWithAI") {
+            // Popup asked for a Tier 2 (LLM) analysis of a tab's stored result.
+            // Running the fetch here means it completes even if the popup closes,
+            // and the cached aiResult is there when the popup reopens.
+            if (message.tabId === undefined) {
+                sendResponse({ error: "not found" });
+                return true;
+            }
+            const key = `tab_${message.tabId}`;
+            (async () => {
+                const data = await chrome.storage.session.get(key);
+                const stored = data[key] as StoredEntry | undefined;
+                if (!stored) {
+                    sendResponse({ error: "not found" });
+                    return;
+                }
+                try {
+                    const aiResult = await checkWithAI(stored);
+                    await chrome.storage.session.set({ [key]: { ...stored, aiResult } });
+                    sendResponse({ aiResult });
+                } catch (e) {
+                    console.warn("[Beacon] AI check failed:", e);
+                    sendResponse({ error: "unavailable" });
+                }
+            })();
             return true;
         }
 
