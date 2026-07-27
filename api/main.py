@@ -36,8 +36,9 @@ def _validate_config() -> None:
                 "extension origin (chrome-extension://<id>) before deploying."
             )
 
-    # Eagerly initialise the provider so a missing GEMINI_API_KEY fails here
-    # with a clear message rather than producing a 503 on the first request.
+    # Eagerly initialise the provider so missing Vertex config (e.g.
+    # GOOGLE_CLOUD_PROJECT) fails here with a clear message rather than
+    # producing a 503 on the first request.
     get_provider()
 
 _validate_config()

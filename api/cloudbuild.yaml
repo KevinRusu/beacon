@@ -1,0 +1,66 @@
+# Cloud Build pipeline: build the Tier-2 API image, push it to Artifact
+# Registry, and deploy it to Cloud Run on b2-beacon1.
+#
+# The Cloud Run service runs AS beacon-app-service, so Vertex AI calls
+# authenticate through that service account automatically — no API key, no
+# mounted key file. Config is injected via --set-env-vars (secrets in .env are
+# excluded from the image by .dockerignore).
+#
+# Submit from the api/ directory so the build context is this folder:
+#   gcloud builds submit --config cloudbuild.yaml \
+#     --substitutions=_ALLOWED_ORIGINS=chrome-extension://<published-id>
+#
+# Prerequisites (grant once, out of band):
+#   - roles/aiplatform.user on beacon-app-service@b2-beacon1  (call Vertex)
+#   - the Cloud Build SA needs roles/run.admin, roles/artifactregistry.writer,
+#     and roles/iam.serviceAccountUser on beacon-app-service (deploy as it)
+#   - an Artifact Registry repo named ${_AR_REPO} must exist in ${_REGION}
+
+substitutions:
+  _REGION: us-east1
+  _SERVICE: beacon-api
+  _AR_REPO: beacon
+  _RUNTIME_SA: beacon-app-service@b2-beacon1.iam.gserviceaccount.com
+  _TAG: latest
+  # Published extension origin, e.g. chrome-extension://<id>. Empty accepts all
+  # origins (dev only). A single origin — commas would clash with the env-var
+  # delimiter below.
+  _ALLOWED_ORIGINS: ""
+
+steps:
+  # 1. Build the container image.
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_SERVICE}:${_TAG}
+      - .
+
+  # 2. Push it to Artifact Registry.
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_SERVICE}:${_TAG}
+
+  # 3. Deploy to Cloud Run as the beacon-app-service service account.
+  #    Public (--allow-unauthenticated) by design: there is no client secret;
+  #    abuse control is the Origin allowlist + per-IP rate limit (see auth.py).
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_SERVICE}:${_TAG}
+      - --platform=managed
+      - --region=${_REGION}
+      - --service-account=${_RUNTIME_SA}
+      - --allow-unauthenticated
+      - --port=3000
+      - --set-env-vars=USE_MOCK=false,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${_REGION},GEMINI_MODEL=gemini-2.5-flash-lite,ALLOWED_EXTENSION_ORIGINS=${_ALLOWED_ORIGINS},FORWARDED_ALLOW_IPS=*
+
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_SERVICE}:${_TAG}
+
+options:
+  logging: CLOUD_LOGGING_ONLY

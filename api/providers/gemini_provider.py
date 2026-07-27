@@ -50,12 +50,21 @@ Page text excerpt:
 
 class GeminiProvider:
     def __init__(self):
-        api_key = os.getenv("GEMINI_API_KEY", "")
-        if not api_key:
+        # b2 does not use API keys — Gemini is reached through Vertex AI, which
+        # authenticates with Application Default Credentials. Locally that comes
+        # from `gcloud auth application-default login --impersonate-service-account=
+        # beacon-app-service@b2-beacon1.iam.gserviceaccount.com`; on Cloud Run it
+        # is the attached beacon-app-service account automatically. No key is read
+        # or stored anywhere.
+        project = os.getenv("GOOGLE_CLOUD_PROJECT", "")
+        location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-east1")
+        if not project:
             raise ProviderConfigError(
-                "GEMINI_API_KEY is not set. Set it in api/.env or the environment, or set USE_MOCK=true."
+                "GOOGLE_CLOUD_PROJECT is not set. Set it in api/.env and run "
+                "`gcloud auth application-default login --impersonate-service-account="
+                "beacon-app-service@b2-beacon1.iam.gserviceaccount.com`, or set USE_MOCK=true."
             )
-        self.client = genai.Client(api_key=api_key)
+        self.client = genai.Client(vertexai=True, project=project, location=location)
 
     async def analyze(self, request: AnalyzeRequest) -> AnalyzeResponse:
         response = await self.client.aio.models.generate_content(

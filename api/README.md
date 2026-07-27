@@ -29,8 +29,9 @@ Nothing is ever inverted on the wire.
 
 | Variable | Required | Description |
 |---|---|---|
-| `USE_MOCK` | No (default: `true`) | Skip Gemini and use a deterministic mock. No API key needed. |
-| `GEMINI_API_KEY` | Only if `USE_MOCK=false` | Gemini API key for live LLM analysis. Server-side only — never ships to clients. |
+| `USE_MOCK` | No (default: `true`) | Skip Gemini and use a deterministic mock. No credentials needed. |
+| `GOOGLE_CLOUD_PROJECT` | Only if `USE_MOCK=false` | GCP project for Vertex AI (`b2-beacon1`). Auth is via ADC / the runtime service account — no API key. |
+| `GOOGLE_CLOUD_LOCATION` | No (default: `us-east1`) | Vertex AI region. |
 | `GEMINI_MODEL` | No (default: `gemini-2.5-flash-lite`) | Gemini model name. Override to migrate to a newer model without a code change. |
 | `ALLOWED_EXTENSION_ORIGINS` | Recommended in production | Comma-separated `Origin` allowlist, e.g. `chrome-extension://<id>`. Also used as the CORS allowlist. Empty = accept all origins (dev; a warning is logged). |
 | `RATE_LIMIT` | No (default: `5/minute;60/day`) | Per-IP limits, `;`-separated (e.g. `10/minute;100/day`). |
@@ -42,5 +43,4 @@ Nothing is ever inverted on the wire.
 
 - `POST /v1/analyze` — Tier 2 analysis. Request/response schemas in `schemas.py`.
 - `GET /health` — liveness probe, no auth, no rate limit.
-
-> **Tip:** Keep `USE_MOCK=true` while developing. Switch to `USE_MOCK=false` only when you need a real Gemini response.
+```
