@@ -7,7 +7,8 @@
 //
 // The background worker acts as a shared storage hub between the other two,
 // and is the ONLY place that talks to the Beacon API over the network —
-// the popup and content script never fetch.
+// the popup and content script never fetch. It also owns the toolbar badge,
+// since chrome.action is unavailable to content scripts.
 //
 // Message flow:
 //
@@ -25,7 +26,7 @@
 //   popup.ts    ->  { action: "getEnabled" }                     →  background.ts
 //   background.ts  ->  { enabled: boolean }                      →  popup.ts
 
-import type { HeuristicResult, ExtractedPageData } from "../types/heuristics";
+import type { HeuristicResult, ExtractedPageData, Verdict } from "../types/heuristics";
 import type { AnalyzeResponse } from "../types/api";
 
 // StoredEntry is the only shape not exported from the shared types file.
@@ -43,14 +44,36 @@ interface StoredEntry {
 // chrome.storage.local persists across browser restarts and is used for
 // user preferences like the "Enable Beacon" toggle.
 
+// –– Toolbar badge ––
+// Mirrors the current verdict onto the extension icon so the user sees the
+// state without opening the popup.
+
+const BADGE: Record<Verdict, { color: string; text: string }> = {
+    safe:      { color: "#16a34a", text: "✓" },
+    uncertain: { color: "#f59e0b", text: "!" },
+    scam:      { color: "#dc2626", text: "✕" },
+};
+
+// Both helpers swallow their errors. chrome.action rejects with "No tab with
+// id" when a tab closes mid-flight, and the badge is cosmetic — it must never
+// take down the storage write or the sendResponse that follows it.
+
+async function setBadge(tabId: number, verdict: Verdict): Promise<void> {
+    const { color, text } = BADGE[verdict];
+    try {
+        await chrome.action.setBadgeBackgroundColor({ tabId, color });
+        await chrome.action.setBadgeTextColor({ tabId, color: "#ffffff" });
+        await chrome.action.setBadgeText({ tabId, text });
+    } catch {
+        /* tab went away */
+    }
+}
+
+function clearBadge(tabId: number): Promise<void> {
+    return chrome.action.setBadgeText({ tabId, text: "" }).catch(() => {});
+}
+
 // –– Tier 2 API call ––
-// Builds the wire payload in exactly one place. Score convention: everything
-// is a SAFETY score (10 = safe, 0 = scam) — the extension's internal score,
-// the heuristic_score request field, and the safety_score response field all
-// use the same scale. Nothing is inverted anywhere.
-// Field truncations mirror the server-side caps in api/schemas.py.
-// No auth header: the API has no client secret (see api/auth.py); the server
-// checks the request Origin and rate-limits instead.
 
 async function checkWithAI(stored: StoredEntry): Promise<AnalyzeResponse> {
     const { result, pageData } = stored;
@@ -97,6 +120,7 @@ chrome.runtime.onMessage.addListener(
                     const prefs = await chrome.storage.local.get("isEnabled");
                     const isEnabled = prefs["isEnabled"] !== false; // default true
                     if (!isEnabled) {
+                        await clearBadge(tabId);
                         sendResponse({ success: false });
                         return;
                     }
@@ -105,6 +129,7 @@ chrome.runtime.onMessage.addListener(
                         pageData: message.pageData!,
                     };
                     await chrome.storage.session.set({ [`tab_${tabId}`]: entry });
+                    await setBadge(tabId, message.result!.verdict);
                     console.log(`[Beacon] stored result for tab ${tabId}`, message.result);
                     sendResponse({ success: true });
                 })();
@@ -152,6 +177,9 @@ chrome.runtime.onMessage.addListener(
                 try {
                     const aiResult = await checkWithAI(stored);
                     await chrome.storage.session.set({ [key]: { ...stored, aiResult } });
+                    // The AI verdict supersedes the heuristic one in the popup,
+                    // so the badge follows it too.
+                    await setBadge(message.tabId!, aiResult.label);
                     sendResponse({ aiResult });
                 } catch (e) {
                     console.warn("[Beacon] AI check failed:", e);
@@ -181,6 +209,12 @@ chrome.runtime.onMessage.addListener(
                     const tabKeys = Object.keys(all).filter((k) => k.startsWith("tab_"));
                     if (tabKeys.length > 0) {
                         await chrome.storage.session.remove(tabKeys);
+                        // Clear each tab's badge individually — a global
+                        // setBadgeText would be overridden by the per-tab
+                        // values these tabs already carry.
+                        await Promise.all(
+                            tabKeys.map((k) => clearBadge(Number(k.slice("tab_".length))))
+                        );
                     }
                 }
                 sendResponse({ success: true });
@@ -194,7 +228,19 @@ chrome.runtime.onMessage.addListener(
 
 // –– Tab cleanup ––
 // When a tab closes, remove its stored entry so session storage doesn't grow forever.
+// The badge needs no cleanup here — it belongs to the tab and dies with it.
 
 chrome.tabs.onRemoved.addListener(async (tabId: number) => {
     await chrome.storage.session.remove(`tab_${tabId}`);
+});
+
+// –– Stale badge guard ––
+// A tab navigating away from a scanned page must not keep the old verdict. On a
+// normal page load the content script re-scans and storeResult re-badges within
+// moments; this matters for pages the content script can't reach (chrome://,
+// the Web Store), where nothing would otherwise overwrite the previous badge.
+// Reading only changeInfo.status keeps this free of the "tabs" permission.
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    if (changeInfo.status === "loading") clearBadge(tabId);
 });

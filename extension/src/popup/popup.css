@@ -1,3 +1,26 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* The popup window behind the React tree. This paints before popup.js runs, so
+   it follows the OS theme first to avoid a white frame on dark-mode systems;
+   the explicit .dark/.light classes from theme.ts then take over. Without this
+   a sliver of white shows around the app whenever the window is taller than
+   the content. */
+html {
+  background-color: #f5f5f7;
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    background-color: #111827;
+  }
+}
+
+html.dark {
+  background-color: #111827;
+}
+
+html.light {
+  background-color: #f5f5f7;
+}

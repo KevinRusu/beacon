@@ -10,9 +10,11 @@ import {
   BrainCircuit,
   Activity,
   AlertCircle,
+  Moon,
 } from "lucide-react";
 import type { HeuristicResult, ExtractedPageData } from "../types/heuristics";
 import type { AnalyzeResponse } from "../types/api";
+import { applyTheme, readTheme, saveTheme, type Theme } from "./theme";
 
 const RESTRICTED_PROTOCOLS = new Set([
   "chrome:",
@@ -51,6 +53,9 @@ export default function App() {
   const [aiEnabled, setAiEnabled] = useState(true);
   const [llmResult, setLlmResult] = useState<AnalyzeResponse | null>(null);
   const [llmError, setLlmError] = useState<string | null>(null);
+  // popup.tsx already applied this to <html> before render; this just mirrors
+  // it into React so the switch shows the right position.
+  const [theme, setTheme] = useState<Theme>(readTheme);
 
   useEffect(() => {
     // Load persisted enabled state from background before fetching result
@@ -111,6 +116,13 @@ export default function App() {
     chrome.storage.local.set({ aiEnabled: enabled });
   };
 
+  const handleThemeToggle = (dark: boolean) => {
+    const next: Theme = dark ? "dark" : "light";
+    setTheme(next);
+    applyTheme(next);
+    saveTheme(next);
+  };
+
   // The network call lives in the background service worker (the only place
   // that fetches) — it builds the payload, calls the API, and caches the
   // response so it survives popup close/reopen.
@@ -138,24 +150,29 @@ export default function App() {
   const isWarning = activeVerdict === "uncertain";
   const isDanger = activeVerdict === "scam";
 
-  let statusColor = "text-green-600";
-  let ringColor = "text-green-500";
+  // Dark variants lighten the hue rather than reuse it: green-600 on a dark
+  // card is too low-contrast to read as a status colour.
+  let statusColor = "text-green-600 dark:text-green-400";
+  let ringColor = "text-green-500 dark:text-green-400";
   let statusText = "Safe";
   let StatusIcon = CheckCircle;
-  let summaryBg = "bg-green-50 text-green-800 border-green-200";
+  let summaryBg =
+    "bg-green-50 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-200 dark:border-green-900";
 
   if (isWarning) {
-    statusColor = "text-amber-500";
-    ringColor = "text-amber-500";
+    statusColor = "text-amber-500 dark:text-amber-400";
+    ringColor = "text-amber-500 dark:text-amber-400";
     statusText = "Warning";
     StatusIcon = AlertTriangle;
-    summaryBg = "bg-amber-50 text-amber-800 border-amber-200";
+    summaryBg =
+      "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-900";
   } else if (isDanger) {
-    statusColor = "text-red-600";
-    ringColor = "text-red-500";
+    statusColor = "text-red-600 dark:text-red-400";
+    ringColor = "text-red-500 dark:text-red-400";
     statusText = "Dangerous";
     StatusIcon = ShieldAlert;
-    summaryBg = "bg-red-50 text-red-800 border-red-200";
+    summaryBg =
+      "bg-red-50 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-200 dark:border-red-900";
   }
 
   const summaryText =
@@ -170,49 +187,75 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <div className="w-[400px] h-[200px] bg-[#f5f5f7] flex items-center justify-center font-sans">
-        <div className="flex flex-col items-center gap-3 text-gray-500">
-          <Activity className="w-7 h-7 animate-pulse text-blue-500" />
+      <div className="w-[400px] h-[200px] bg-[#f5f5f7] dark:bg-gray-900 flex items-center justify-center font-sans">
+        <div className="flex flex-col items-center gap-3 text-gray-500 dark:text-gray-400">
+          <Activity className="w-7 h-7 animate-pulse text-blue-500 dark:text-blue-400" />
           <p className="text-sm font-medium">Checking page…</p>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (!extensionEnabled || error) {
     return (
-      <div className="w-[400px] bg-[#f5f5f7] flex flex-col font-sans">
+      <div className="w-[400px] bg-[#f5f5f7] dark:bg-gray-900 flex flex-col font-sans">
         {/* Header */}
         <div className="flex flex-col items-center pt-8 pb-5 px-6">
-          <div className="flex items-center gap-2 mb-1 text-blue-900">
-            <RadioTower className="w-8 h-8 text-blue-600" />
+          <div className="flex items-center gap-2 mb-1 text-blue-900 dark:text-blue-300">
+            <RadioTower className="w-8 h-8 text-blue-600 dark:text-blue-400" />
             <h1 className="text-3xl font-bold tracking-tight">Beacon</h1>
           </div>
-          <p className="text-[15px] text-gray-500 font-medium">Scam Detection Tool</p>
+          <p className="text-[15px] text-gray-500 dark:text-gray-400 font-medium">
+            Scam Detection Tool
+          </p>
         </div>
-        <div className="px-5 pb-8">
-          <div className="p-4 rounded-xl border border-red-200 bg-red-50 shadow-sm">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0 text-red-500" />
-              <p className="text-[15px] leading-snug font-medium text-red-800">{error}</p>
+        <div className="px-5 pb-8 space-y-5">
+          {!extensionEnabled ? (
+            <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
+              <div className="flex items-start gap-3">
+                <Power className="w-5 h-5 mt-0.5 flex-shrink-0 text-gray-400 dark:text-gray-500" />
+                <p className="text-[15px] leading-snug font-medium text-gray-600 dark:text-gray-300">
+                  Beacon is paused. Switch <span className="font-semibold">Enable Beacon</span> back
+                  on to resume checking pages.
+                </p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="p-4 rounded-xl border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950 shadow-sm">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0 text-red-500 dark:text-red-400" />
+                <p className="text-[15px] leading-snug font-medium text-red-800 dark:text-red-200">
+                  {error}
+                </p>
+              </div>
+            </div>
+          )}
+          <SettingsPanel
+            extensionEnabled={extensionEnabled}
+            aiEnabled={aiEnabled}
+            darkMode={theme === "dark"}
+            onExtensionToggle={handleExtensionToggle}
+            onAiToggle={handleAiToggle}
+            onThemeToggle={handleThemeToggle}
+          />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-[400px] h-[600px] bg-[#f5f5f7] flex flex-col font-sans overflow-hidden text-gray-900">
+    <div className="w-[400px] h-[600px] bg-[#f5f5f7] dark:bg-gray-900 flex flex-col font-sans overflow-hidden text-gray-900 dark:text-gray-100">
       <div className="flex-1 overflow-y-auto">
 
         {/* Header */}
         <div className="flex flex-col items-center pt-8 pb-5 px-6">
-          <div className="flex items-center gap-2 mb-1 text-blue-900">
-            <RadioTower className="w-8 h-8 text-blue-600" />
+          <div className="flex items-center gap-2 mb-1 text-blue-900 dark:text-blue-300">
+            <RadioTower className="w-8 h-8 text-blue-600 dark:text-blue-400" />
             <h1 className="text-3xl font-bold tracking-tight">Beacon</h1>
           </div>
-          <p className="text-[15px] text-gray-500 font-medium">Scam Detection Tool</p>
+          <p className="text-[15px] text-gray-500 dark:text-gray-400 font-medium">
+            Scam Detection Tool
+          </p>
         </div>
 
         <div className="px-5 space-y-5 pb-8">
@@ -224,8 +267,10 @@ export default function App() {
               disabled={isSafe || isAnalyzing || !extensionEnabled || !aiEnabled || !!llmResult}
               className={`w-full py-3.5 px-4 rounded-xl font-semibold text-[16px] shadow-sm flex justify-center items-center gap-2 transition-all ${
                 isSafe || !extensionEnabled || !aiEnabled
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700 text-white hover:shadow-md active:scale-[0.98]"
+                  ? "bg-gray-200 text-gray-400 dark:bg-gray-800 dark:text-gray-500 cursor-not-allowed"
+                  : // blue-600 in both themes on purpose: blue-500 would drop
+                    // the white label to 3.7:1, below the light theme's 5.2:1.
+                    "bg-blue-600 hover:bg-blue-700 text-white hover:shadow-md active:scale-[0.98]"
               }`}
             >
               {isAnalyzing ? (
@@ -246,7 +291,7 @@ export default function App() {
               )}
             </button>
             {!isSafe && (
-              <p className="text-center text-xs text-gray-500 mt-2 font-medium">
+              <p className="text-center text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">
                 Uses Advanced AI to scan for hidden threats
               </p>
             )}
@@ -254,7 +299,7 @@ export default function App() {
 
           {/* Score Card */}
           <div
-            className={`bg-white rounded-2xl p-5 shadow-sm border border-gray-100 transition-opacity ${
+            className={`bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 transition-opacity ${
               !extensionEnabled ? "opacity-50" : ""
             }`}
           >
@@ -263,7 +308,7 @@ export default function App() {
               <div className="relative w-[84px] h-[84px] flex-shrink-0">
                 <svg className="w-full h-full transform -rotate-90">
                   <circle
-                    className="text-gray-100"
+                    className="text-gray-100 dark:text-gray-700"
                     strokeWidth="8"
                     stroke="currentColor"
                     fill="transparent"
@@ -285,8 +330,12 @@ export default function App() {
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-2xl font-bold text-gray-800 leading-none">{score}</span>
-                  <span className="text-[11px] font-bold text-gray-400">/ 10</span>
+                  <span className="text-2xl font-bold text-gray-800 dark:text-gray-100 leading-none">
+                    {score}
+                  </span>
+                  <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500">
+                    / 10
+                  </span>
                 </div>
               </div>
 
@@ -295,9 +344,11 @@ export default function App() {
                 <div className="flex items-center gap-2 mb-1">
                   <StatusIcon className={`w-5 h-5 ${statusColor}`} />
                   <h2 className={`text-xl font-bold ${statusColor}`}>{statusText}</h2>
-                  {llmResult && <BrainCircuit className="w-4 h-4 text-purple-400" />}
+                  {llmResult && (
+                    <BrainCircuit className="w-4 h-4 text-purple-400 dark:text-purple-300" />
+                  )}
                 </div>
-                <p className="text-gray-500 text-[15px] truncate font-medium">
+                <p className="text-gray-500 dark:text-gray-400 text-[15px] truncate font-medium">
                   {getDomain(pageUrl) || "—"}
                 </p>
               </div>
@@ -317,7 +368,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* AI disclaimer + error */}
+          {/* AI disclaimer + error. gray-400 reads in both themes (7.0:1 on the
+              dark page), so it needs no dark variant. */}
           {(llmResult || llmError) && (
             <p className="text-center text-xs text-gray-400 px-2">
               {llmError
@@ -326,59 +378,117 @@ export default function App() {
             </p>
           )}
 
-          {/* Settings */}
-          <div>
-            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">
-              Settings
-            </h3>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
-
-              {/* Enable Beacon */}
-              <div className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`p-2 rounded-lg ${
-                      extensionEnabled ? "bg-blue-50 text-blue-600" : "bg-gray-100 text-gray-500"
-                    }`}
-                  >
-                    <Power className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="font-semibold text-[15px] text-gray-900">Enable Beacon</div>
-                    <div className="text-[13px] text-gray-500">Protect your browsing</div>
-                  </div>
-                </div>
-                <Toggle enabled={extensionEnabled} onChange={handleExtensionToggle} />
-              </div>
-
-              {/* Advanced AI Check */}
-              <div className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`p-2 rounded-lg ${
-                      aiEnabled && extensionEnabled
-                        ? "bg-purple-50 text-purple-600"
-                        : "bg-gray-100 text-gray-500"
-                    }`}
-                  >
-                    <BrainCircuit className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="font-semibold text-[15px] text-gray-900">Advanced AI Check</div>
-                    <div className="text-[13px] text-gray-500">Allow calling language model</div>
-                  </div>
-                </div>
-                <Toggle
-                  enabled={aiEnabled}
-                  onChange={handleAiToggle}
-                  disabled={!extensionEnabled}
-                />
-              </div>
-
-            </div>
-          </div>
+          <SettingsPanel
+            extensionEnabled={extensionEnabled}
+            aiEnabled={aiEnabled}
+            darkMode={theme === "dark"}
+            onExtensionToggle={handleExtensionToggle}
+            onAiToggle={handleAiToggle}
+            onThemeToggle={handleThemeToggle}
+          />
 
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Rendered by every popup state, so the Enable Beacon toggle is always reachable.
+function SettingsPanel({
+  extensionEnabled,
+  aiEnabled,
+  darkMode,
+  onExtensionToggle,
+  onAiToggle,
+  onThemeToggle,
+}: {
+  extensionEnabled: boolean;
+  aiEnabled: boolean;
+  darkMode: boolean;
+  onExtensionToggle: (val: boolean) => void;
+  onAiToggle: (val: boolean) => void;
+  onThemeToggle: (val: boolean) => void;
+}) {
+  return (
+    <div>
+      <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">
+        Settings
+      </h3>
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden divide-y divide-gray-100 dark:divide-gray-700">
+
+        {/* Enable Beacon */}
+        <div className="p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div
+              className={`p-2 rounded-lg ${
+                extensionEnabled
+                  ? "bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400"
+                  : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+              }`}
+            >
+              <Power className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="font-semibold text-[15px] text-gray-900 dark:text-gray-100">
+                Enable Beacon
+              </div>
+              <div className="text-[13px] text-gray-500 dark:text-gray-400">
+                Protect your browsing
+              </div>
+            </div>
+          </div>
+          <Toggle enabled={extensionEnabled} onChange={onExtensionToggle} />
+        </div>
+
+        {/* Advanced AI Check */}
+        <div className="p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div
+              className={`p-2 rounded-lg ${
+                aiEnabled && extensionEnabled
+                  ? "bg-purple-50 text-purple-600 dark:bg-purple-950 dark:text-purple-400"
+                  : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+              }`}
+            >
+              <BrainCircuit className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="font-semibold text-[15px] text-gray-900 dark:text-gray-100">
+                Advanced AI Check
+              </div>
+              <div className="text-[13px] text-gray-500 dark:text-gray-400">
+                Allow calling language model
+              </div>
+            </div>
+          </div>
+          <Toggle enabled={aiEnabled} onChange={onAiToggle} disabled={!extensionEnabled} />
+        </div>
+
+        {/* Dark Mode — a display preference, so unlike the AI check it stays
+            usable while Beacon is paused. */}
+        <div className="p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div
+              className={`p-2 rounded-lg ${
+                darkMode
+                  ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400"
+                  : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+              }`}
+            >
+              <Moon className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="font-semibold text-[15px] text-gray-900 dark:text-gray-100">
+                Dark Mode
+              </div>
+              <div className="text-[13px] text-gray-500 dark:text-gray-400">
+                Easier on the eyes at night
+              </div>
+            </div>
+          </div>
+          <Toggle enabled={darkMode} onChange={onThemeToggle} />
+        </div>
+
       </div>
     </div>
   );
@@ -400,7 +510,7 @@ function Toggle({
       disabled={disabled}
       className={`relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
         disabled ? "opacity-50 cursor-not-allowed" : ""
-      } ${enabled ? "bg-green-500" : "bg-gray-300"}`}
+      } ${enabled ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"}`}
       role="switch"
       aria-checked={enabled}
     >

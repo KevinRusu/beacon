@@ -1,0 +1,31 @@
+<!--
+  Beacon extension icon — source of truth for the generated PNGs.
+
+  Regenerate after editing:
+    for s in 16 32 48 128; do rsvg-convert -w $s -h $s icon.svg -o icon-$s.png; done
+
+  The mark is lucide's "radio-tower" glyph, the same one the popup header uses
+  (see src/popup/App.tsx), on a solid blue-600 (#2563eb) tile. A filled tile
+  rather than a bare glyph: lucide strokes are 2px on a 24x24 grid and turn to
+  mush at the 16px toolbar size, and the solid backdrop keeps the verdict badge
+  legible where it sits in the bottom-right corner.
+
+  Glyph paths are lucide-react v0.511.0, ISC licensed:
+    Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as
+    part of Feather (MIT). All other copyright (c) for Lucide are held by
+    Lucide Contributors 2022.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="28" fill="#2563eb"/>
+  <g transform="translate(24 24) scale(3.333)"
+     fill="none" stroke="#fff" stroke-width="2.25"
+     stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.9 16.1C1 12.2 1 5.8 4.9 1.9"/>
+    <path d="M7.8 4.7a6.14 6.14 0 0 0-.8 7.5"/>
+    <circle cx="12" cy="9" r="2"/>
+    <path d="M16.2 4.8c2 2 2.26 5.11.8 7.47"/>
+    <path d="M19.1 1.9a9.96 9.96 0 0 1 0 14.1"/>
+    <path d="M9.5 18h5"/>
+    <path d="m8 22 4-11 4 11"/>
+  </g>
+</svg>
